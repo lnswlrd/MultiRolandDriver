@@ -1,0 +1,3 @@
+*.o
+*.plugin/
+.DS_Store
