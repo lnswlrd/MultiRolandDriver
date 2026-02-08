@@ -66,7 +66,13 @@ bool RolandUSBDevice::Open()
     }
 
     kr = (*deviceIntf)->USBDeviceOpen(deviceIntf);
-    if (kr != kIOReturnSuccess && kr != kIOReturnExclusiveAccess) {
+    if (kr == kIOReturnSuccess) {
+        deviceOpened = true;
+    } else if (kr == kIOReturnExclusiveAccess) {
+        deviceOpened = false;
+        os_log(sLog, "Open: %{public}s is composite, will claim MIDI interface only",
+               deviceInfo->name);
+    } else {
         os_log_error(sLog, "Open: USBDeviceOpen failed for %{public}s (0x%x)", deviceInfo->name, kr);
         (*deviceIntf)->Release(deviceIntf);
         deviceIntf = nullptr;
@@ -77,15 +83,17 @@ bool RolandUSBDevice::Open()
     (*deviceIntf)->GetLocationID(deviceIntf, &locID);
     locationID = locID;
 
-    // Set USB configuration 1 (required for interfaces to appear)
-    UInt8 numConf = 0;
-    (*deviceIntf)->GetNumberOfConfigurations(deviceIntf, &numConf);
+    // Set USB configuration only if we own the device (not composite)
+    if (deviceOpened) {
+        UInt8 numConf = 0;
+        (*deviceIntf)->GetNumberOfConfigurations(deviceIntf, &numConf);
 
-    if (numConf > 0) {
-        IOUSBConfigurationDescriptorPtr confDesc = nullptr;
-        kr = (*deviceIntf)->GetConfigurationDescriptorPtr(deviceIntf, 0, &confDesc);
-        if (kr == kIOReturnSuccess && confDesc)
-            (*deviceIntf)->SetConfiguration(deviceIntf, confDesc->bConfigurationValue);
+        if (numConf > 0) {
+            IOUSBConfigurationDescriptorPtr confDesc = nullptr;
+            kr = (*deviceIntf)->GetConfigurationDescriptorPtr(deviceIntf, 0, &confDesc);
+            if (kr == kIOReturnSuccess && confDesc)
+                (*deviceIntf)->SetConfiguration(deviceIntf, confDesc->bConfigurationValue);
+        }
     }
 
     if (!FindInterface()) {
@@ -115,18 +123,87 @@ void RolandUSBDevice::Close()
     }
 
     if (deviceIntf) {
-        (*deviceIntf)->USBDeviceClose(deviceIntf);
+        if (deviceOpened)
+            (*deviceIntf)->USBDeviceClose(deviceIntf);
         (*deviceIntf)->Release(deviceIntf);
         deviceIntf = nullptr;
+        deviceOpened = false;
     }
 
     bulkInPipeRef = 0;
     bulkOutPipeRef = 0;
 }
 
+// Returns true if the interface is a MIDI-capable interface:
+// - Vendor Specific (class 0xFF) — used by most Roland devices
+// - Audio/MIDI Streaming (class 0x01, subclass 0x03)
+static bool IsMIDIInterface(IOUSBInterfaceInterface650 **intf)
+{
+    UInt8 intfClass = 0, intfSubClass = 0;
+    (*intf)->GetInterfaceClass(intf, &intfClass);
+    (*intf)->GetInterfaceSubClass(intf, &intfSubClass);
+
+    if (intfClass == 0xFF)
+        return true;  // Vendor Specific
+    if (intfClass == 0x01 && intfSubClass == 0x03)
+        return true;  // Audio MIDI Streaming
+    return false;
+}
+
+// Probe an interface service: create InterfaceInterface, check class, open if MIDI
+static IOUSBInterfaceInterface650 **ProbeAndOpenInterface(io_service_t intfService, int idx)
+{
+    IOCFPlugInInterface **plugIn = nullptr;
+    SInt32 score = 0;
+
+    kern_return_t kr = IOCreatePlugInInterfaceForService(
+        intfService, kIOUSBInterfaceUserClientTypeID,
+        kIOCFPlugInInterfaceID, &plugIn, &score);
+
+    if (kr != kIOReturnSuccess || !plugIn) {
+        os_log_error(sLog, "FindInterface: IOCreatePlugIn failed for interface %d (0x%x)", idx, kr);
+        return nullptr;
+    }
+
+    IOUSBInterfaceInterface650 **intf = nullptr;
+    HRESULT hr = (*plugIn)->QueryInterface(
+        plugIn,
+        CFUUIDGetUUIDBytes(kIOUSBInterfaceInterfaceID650),
+        (LPVOID *)&intf);
+    (*plugIn)->Release(plugIn);
+
+    if (hr != S_OK || !intf) {
+        os_log_error(sLog, "FindInterface: QI failed for interface %d", idx);
+        return nullptr;
+    }
+
+    // Check interface class BEFORE opening
+    UInt8 intfClass = 0, intfSubClass = 0;
+    (*intf)->GetInterfaceClass(intf, &intfClass);
+    (*intf)->GetInterfaceSubClass(intf, &intfSubClass);
+
+    if (!IsMIDIInterface(intf)) {
+        os_log(sLog, "FindInterface: skipping interface %d (class=0x%02x sub=0x%02x)",
+               idx, intfClass, intfSubClass);
+        (*intf)->Release(intf);
+        return nullptr;
+    }
+
+    kr = (*intf)->USBInterfaceOpen(intf);
+    if (kr == kIOReturnSuccess) {
+        os_log(sLog, "FindInterface: claimed interface %d (class=0x%02x sub=0x%02x)",
+               idx, intfClass, intfSubClass);
+        return intf;
+    }
+
+    os_log_error(sLog, "FindInterface: USBInterfaceOpen failed for interface %d (0x%x)", idx, kr);
+    (*intf)->Release(intf);
+    return nullptr;
+}
+
 bool RolandUSBDevice::FindInterface()
 {
-    // First try legacy CreateInterfaceIterator
+    // Primary path: CreateInterfaceIterator with DontCare filter
     IOUSBFindInterfaceRequest req;
     req.bInterfaceClass    = kIOUSBFindInterfaceDontCare;
     req.bInterfaceSubClass = kIOUSBFindInterfaceDontCare;
@@ -138,15 +215,21 @@ bool RolandUSBDevice::FindInterface()
 
     if (kr == kIOReturnSuccess) {
         io_service_t intfService;
+        int idx = 0;
         while ((intfService = IOIteratorNext(iter)) != 0) {
-            if (OpenUSBInterface(intfService)) {
+            auto **intf = ProbeAndOpenInterface(intfService, idx);
+            IOObjectRelease(intfService);
+            if (intf) {
+                interfaceIntf = intf;
                 IOObjectRelease(iter);
                 return true;
             }
+            idx++;
         }
         IOObjectRelease(iter);
     }
-    // Fallback: find IOUSBHostInterface children of the device service
+
+    // Fallback: IOUSBHostInterface children of the device service
     io_iterator_t childIter = 0;
     kr = IORegistryEntryGetChildIterator(service, kIOServicePlane, &childIter);
     if (kr != kIOReturnSuccess) {
@@ -155,58 +238,24 @@ bool RolandUSBDevice::FindInterface()
     }
 
     io_service_t child;
-    int childCount = 0;
+    int childIdx = 0;
     while ((child = IOIteratorNext(childIter)) != 0) {
-        childCount++;
         if (IOObjectConformsTo(child, "IOUSBHostInterface")) {
-            if (OpenUSBInterface(child)) {
+            auto **intf = ProbeAndOpenInterface(child, childIdx);
+            IOObjectRelease(child);
+            if (intf) {
+                interfaceIntf = intf;
                 IOObjectRelease(childIter);
                 return true;
             }
+        } else {
+            IOObjectRelease(child);
         }
-        IOObjectRelease(child);
+        childIdx++;
     }
 
-    os_log_error(sLog, "FindInterface: no usable interface found (%d children checked)", childCount);
+    os_log_error(sLog, "FindInterface: no MIDI interface found (%d children checked)", childIdx);
     IOObjectRelease(childIter);
-    return false;
-}
-
-bool RolandUSBDevice::OpenUSBInterface(io_service_t intfService)
-{
-    IOCFPlugInInterface **plugIn = nullptr;
-    SInt32 score = 0;
-
-    kern_return_t kr = IOCreatePlugInInterfaceForService(
-        intfService, kIOUSBInterfaceUserClientTypeID,
-        kIOCFPlugInInterfaceID, &plugIn, &score);
-    IOObjectRelease(intfService);
-
-    if (kr != kIOReturnSuccess || !plugIn) {
-        os_log_error(sLog, "OpenUSBInterface: IOCreatePlugIn failed (0x%x)", kr);
-        return false;
-    }
-
-    IOUSBInterfaceInterface650 **intf = nullptr;
-    HRESULT hr = (*plugIn)->QueryInterface(
-        plugIn,
-        CFUUIDGetUUIDBytes(kIOUSBInterfaceInterfaceID650),
-        (LPVOID *)&intf);
-    (*plugIn)->Release(plugIn);
-
-    if (hr != S_OK || !intf) {
-        os_log_error(sLog, "OpenUSBInterface: QI for InterfaceInterface650 failed");
-        return false;
-    }
-
-    kr = (*intf)->USBInterfaceOpen(intf);
-    if (kr == kIOReturnSuccess) {
-        interfaceIntf = intf;
-        return true;
-    }
-
-    os_log_error(sLog, "OpenUSBInterface: USBInterfaceOpen failed (0x%x)", kr);
-    (*intf)->Release(intf);
     return false;
 }
 

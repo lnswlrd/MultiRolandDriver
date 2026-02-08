@@ -26,13 +26,21 @@ struct RolandDeviceInfo {
 static const uint16_t kRolandVendorIDValue = 0x0582;
 
 static const RolandDeviceInfo kSupportedDevices[] = {
+    { "Roland SC-8850",          0x0003, 4, {{ "SC-8850 Part A", 0 }, { "SC-8850 Part B", 1 }, { "SC-8850 Part C", 2 }, { "SC-8850 Part D", 3 }} },
+    { "Roland SC-8820",          0x0007, 2, {{ "SC-8820 Part A", 0 }, { "SC-8820 Part B", 1 }} },
+    { "Roland SK-500",           0x000B, 2, {{ "SK-500 Part A", 0 }, { "SK-500 Part B", 1 }} },
+    { "Roland SC-D70",           0x000C, 2, {{ "SC-D70 Part A", 0 }, { "SC-D70 Part B", 1 }} },
+    { "Roland SD-90",            0x0016, 2, {{ "SD-90 MIDI 1", 0 }, { "SD-90 MIDI 2", 1 }} },
     { "Roland V-Synth",          0x001F, 1, {{ "V-Synth", 0 }} },
+    { "Roland SD-20",            0x0027, 1, {{ "SD-20", 0 }} },
+    { "Roland SD-80",            0x0029, 2, {{ "SD-80 MIDI 1", 0 }, { "SD-80 MIDI 2", 1 }} },
     { "Roland XV-5050",          0x002B, 1, {{ "XV-5050", 0 }} },
     { "Roland XV-2020",          0x002D, 1, {{ "XV-2020", 0 }} },
     { "Roland Fantom-S",         0x0032, 1, {{ "Fantom-S", 0 }} },
     { "Roland V-Synth XT",       0x0033, 1, {{ "V-Synth XT", 0 }} },
     { "Roland Fantom-X",         0x006B, 1, {{ "Fantom-X", 0 }} },
     { "Roland Juno-D",           0x0074, 1, {{ "Juno-D", 0 }} },
+    { "Roland G-70",             0x0080, 2, {{ "G-70 MIDI", 0 }, { "G-70 Control", 1 }} },
     { "Roland SH-201",           0x009D, 1, {{ "SH-201", 0 }} },
     { "Roland Juno-G",           0x00A5, 1, {{ "Juno-G", 0 }} },
     { "Roland V-Synth GT",       0x00AD, 1, {{ "V-Synth GT", 0 }} },
@@ -97,7 +105,6 @@ public:
 
 private:
     bool FindInterface();
-    bool OpenUSBInterface(io_service_t intfService);
     bool FindPipes();
     void SubmitRead();
     static void ReadCallback(void *refCon, IOReturn result, void *arg0);
@@ -106,6 +113,7 @@ private:
     IOUSBDeviceInterface650    **deviceIntf    = nullptr;
     IOUSBInterfaceInterface650 **interfaceIntf = nullptr;
 
+    bool     deviceOpened    = false;
     uint8_t  bulkInPipeRef   = 0;
     uint8_t  bulkOutPipeRef  = 0;
     uint8_t  rxBuffer[64]    = {};
