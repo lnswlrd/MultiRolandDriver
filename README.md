@@ -49,21 +49,24 @@ All devices use USB Vendor ID `0x0582` (Roland).
 
 The FA-06/08 exposes two ports: MIDI and DAW Control.
 
-## Building
+## Building and Installing
 
 ```bash
 make clean && make
-```
-
-Builds a universal binary (arm64 + x86_64) with ad-hoc code signing.
-
-## Installing
-
-```bash
 make install
 ```
 
-Installs the plugin to `~/Library/Audio/MIDI Drivers/` and restarts the MIDI server.
+Builds a universal binary (arm64 + x86_64) with ad-hoc code signing. Installs the plugin to `~/Library/Audio/MIDI Drivers/` and restarts MIDIServer.
+
+## Pre-built plugin
+
+Download `MultiRolandDriver.plugin` from [Releases](../../releases), then run:
+
+```bash
+./install.sh
+```
+
+The script removes the macOS quarantine flag, ad-hoc signs the plugin, installs it, and restarts MIDIServer.
 
 ## System Requirements
 
