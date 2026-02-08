@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 set -euo pipefail
 
 PLUGIN="MultiRolandDriver.plugin"
