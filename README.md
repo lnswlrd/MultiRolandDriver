@@ -2,13 +2,13 @@
 
 > MultiRolandDriver is an independent project and is not affiliated with, sponsored by, or endorsed by Roland Corporation.
 
-Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 24 Roland USB synthesizers as a universal binary (arm64 + x86_64).
+Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 26 Roland USB devices as a universal binary (arm64 + x86_64).
 
 ## About
 
 This driver provides modern macOS (Apple Silicon) support for a wide range of legacy synthesizers. It was developed to ensure continued interoperability and preservation of hardware instruments that are no longer supported by their original manufacturer.
 
-**Technical Implementation:** This driver contains no code, binaries, or firmware from Roland Corporation. It is a 100% original implementation written from scratch, based entirely on public USB-MIDI specifications and observation of hardware communication protocols. The plugin installs per-user with no kernel extension and no elevated privileges required. A single universal binary covers all 24 supported devices.
+**Technical Implementation:** This driver contains no code, binaries, or firmware from Roland Corporation. It is a 100% original implementation written from scratch, based entirely on public USB-MIDI specifications and observation of hardware communication protocols. The plugin installs per-user with no kernel extension and no elevated privileges required. A single universal binary covers all 26 supported devices.
 
 **Purpose:** This is a non-commercial project dedicated to the synthesizer community, ensuring that classic instruments from 2002--2014 remain functional in modern studio environments.
 
@@ -46,6 +46,9 @@ All devices use USB Vendor ID `0x0582` (Roland).
 | FA-06/08 | `0x0174` | 2 |
 | VR-09 | `0x01A1` | 1 |
 | JD-Xi | `0x01D1` | 1 |
+| **Interfaces** | | |
+| UM-ONE | `0x012A` | 1 |
+| QUAD-CAPTURE | `0x012F` | 1 |
 
 The FA-06/08 exposes two ports: MIDI and DAW Control.
 

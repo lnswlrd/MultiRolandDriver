@@ -50,6 +50,9 @@ static const RolandDeviceInfo kSupportedDevices[] = {
     { "Roland FA-06/08",         0x0174, 2, {{ "FA-06/08", 0 }, { "FA-06/08 DAW CTRL", 1 }} },
     { "Roland VR-09",            0x01A1, 1, {{ "VR-09", 0 }} },
     { "Roland JD-Xi",            0x01D1, 1, {{ "JD-Xi", 0 }} },
+    // Interfaces
+    { "Roland UM-ONE",           0x012A, 1, {{ "UM-ONE", 0 }} },
+    { "Roland QUAD-CAPTURE",     0x012F, 1, {{ "QUAD-CAPTURE", 0 }} },
 };
 
 static const size_t kNumSupportedDevices = sizeof(kSupportedDevices) / sizeof(kSupportedDevices[0]);
