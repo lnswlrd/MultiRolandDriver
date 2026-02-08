@@ -43,6 +43,7 @@ static const RolandDeviceInfo kSupportedDevices[] = {
     { "Roland G-70",             0x0080, 2, {{ "G-70 MIDI", 0 }, { "G-70 Control", 1 }} },
     { "Roland SH-201",           0x009D, 1, {{ "SH-201", 0 }} },
     { "Roland Juno-G",           0x00A5, 1, {{ "Juno-G", 0 }} },
+    { "Roland MC-808",           0x00A9, 1, {{ "MC-808", 0 }} },
     { "Roland V-Synth GT",       0x00AD, 1, {{ "V-Synth GT", 0 }} },
     { "Roland AX-Synth",         0x00B5, 1, {{ "AX-Synth", 0 }} },
     { "Roland SonicCell",        0x00C4, 1, {{ "SonicCell", 0 }} },
