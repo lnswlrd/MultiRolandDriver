@@ -12,7 +12,7 @@
 #define kMaxPortsPerDevice 4
 
 struct RolandPortInfo {
-    const char *name;   // Entity name in CoreMIDI (e.g. "FA-06/08 DAW CTRL")
+    const char *name;   // Entity name in CoreMIDI (e.g. "FA-06/07/08 DAW CTRL")
     uint8_t cable;      // USB-MIDI cable number (0-15)
 };
 
@@ -36,29 +36,25 @@ static const RolandDeviceInfo kSupportedDevices[] = {
     { "Roland SD-20",            0x0027, 1, {{ "SD-20", 0 }} },
     { "Roland SD-80",            0x0029, 2, {{ "SD-80 MIDI 1", 0 }, { "SD-80 MIDI 2", 1 }} },
     { "Roland XV-2020",          0x002D, 1, {{ "XV-2020", 0 }} },
-    { "Roland Fantom-S",         0x0032, 1, {{ "Fantom-S", 0 }} },
+    { "Edirol PCR",              0x0033, 3, {{ "PCR MIDI", 0 }, { "PCR 1", 1 }, { "PCR 2", 2 }} },
     { "Roland Fantom-X",         0x006D, 1, {{ "Fantom-X", 0 }} },
-    { "Roland Juno-D",           0x0074, 1, {{ "Juno-D", 0 }} },
     { "Roland G-70",             0x0080, 2, {{ "G-70 MIDI", 0 }, { "G-70 Control", 1 }} },
     { "Roland V-Synth XT",       0x0084, 1, {{ "V-Synth XT", 0 }} },
-    { "Roland SH-201",           0x009D, 1, {{ "SH-201", 0 }} },
-    { "Roland Juno-G",           0x00A5, 1, {{ "Juno-G", 0 }} },
+    { "Roland Juno-G",           0x00A6, 1, {{ "Juno-G", 0 }} },
     { "Roland MC-808",           0x00A9, 1, {{ "MC-808", 0 }} },
-    { "Roland AX-Synth",         0x00B5, 1, {{ "AX-Synth", 0 }} },
-    { "Roland SonicCell",        0x00C4, 1, {{ "SonicCell", 0 }} },
+    { "Roland SH-201",           0x00AD, 1, {{ "SH-201", 0 }} },
+    { "Roland SonicCell",        0x00C2, 1, {{ "SonicCell", 0 }} },
     { "Roland V-Synth GT",       0x00C7, 1, {{ "V-Synth GT", 0 }} },
-    { "Roland Fantom-G",         0x00D2, 1, {{ "Fantom-G", 0 }} },
-    { "Roland Juno-Stage",       0x00EB, 1, {{ "Juno-Stage", 0 }} },
-    { "Roland Lucina AX-09",     0x0103, 1, {{ "Lucina AX-09", 0 }} },
-    { "Roland Juno-Di",          0x010F, 1, {{ "Juno-Di", 0 }} },
-    { "Roland GAIA SH-01",       0x0113, 1, {{ "GAIA SH-01", 0 }} },
+    { "Roland Fantom-G",         0x00DE, 1, {{ "Fantom-G", 0 }} },
+    { "Roland Juno-Di/Stage",    0x00F8, 1, {{ "JUNO", 0 }} },
+    { "Roland GAIA SH-01",       0x0111, 1, {{ "GAIA SH-01", 0 }} },
+    { "Roland Lucina AX-09",     0x011C, 1, {{ "Lucina AX-09", 0 }} },
     { "Roland Juno-Gi",          0x0123, 1, {{ "Juno-Gi", 0 }} },
     { "Roland Jupiter-80",       0x013A, 1, {{ "Jupiter-80", 0 }} },
-    { "Roland Jupiter-50",       0x0150, 1, {{ "Jupiter-50", 0 }} },
+    { "Roland Jupiter-50",       0x0154, 1, {{ "Jupiter-50", 0 }} },
     { "Roland INTEGRA-7",        0x015B, 1, {{ "INTEGRA-7", 0 }} },
-    { "Roland FA-06/08",         0x0174, 2, {{ "FA-06/08", 0 }, { "FA-06/08 DAW CTRL", 1 }} },
-    { "Roland VR-09",            0x01A1, 1, {{ "VR-09", 0 }} },
-    { "Roland JD-Xi",            0x01D1, 1, {{ "JD-Xi", 0 }} },
+    { "Roland FA-06/07/08",         0x0174, 2, {{ "FA-06/07/08", 0 }, { "FA-06/07/08 DAW CTRL", 1 }} },
+    { "Roland JD-Xi",            0x01A1, 1, {{ "JD-Xi", 0 }} },
     // Interfaces
     { "Roland UM-ONE",           0x012A, 1, {{ "UM-ONE", 0 }} },
     { "Roland QUAD-CAPTURE",     0x012F, 1, {{ "QUAD-CAPTURE", 0 }} },
