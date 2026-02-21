@@ -5,6 +5,15 @@
 #include <CoreMIDI/CoreMIDI.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/usb/IOUSBLib.h>
+#if __has_include(<IOUSBHost/IOUSBHost.h>) && defined(__OBJC__)
+#import <IOUSBHost/IOUSBHost.h>
+#define HAVE_IOUSBHOST 1
+#else
+#define HAVE_IOUSBHOST 0
+// When not compiling as Objective-C(++) we avoid importing IOUSBHost headers
+// and rely on opaque placeholders. Real IOUSBHost usage must be implemented
+// in Objective-C++ (.mm) translation units that import the framework.
+#endif
 #include <IOKit/IOCFPlugIn.h>
 #include <unistd.h>
 
@@ -107,8 +116,28 @@ private:
     static void ReadCallback(void *refCon, IOReturn result, void *arg0);
     bool SendSysExThrottled(uint8_t cable, const uint8_t *data, uint32_t length);
 
+#if HAVE_IOUSBHOST
+    // IOUSBHost-based helpers (scaffolding for migration)
+    bool OpenHost();
+    void CloseHost();
+    bool FindInterfaceHost();
+    bool FindPipesHost();
+    bool StartIOHost(CFRunLoopRef runLoop);
+    void StopIOHost();
+    void SubmitReadHost();
+#endif
+
+    // Legacy IOUSBLib interfaces (kept for compatibility during migration)
     IOUSBDeviceInterface650    **deviceIntf    = nullptr;
     IOUSBInterfaceInterface650 **interfaceIntf = nullptr;
+
+    // IOUSBHost objects (optional - used when HAVE_IOUSBHOST)
+#if HAVE_IOUSBHOST
+    IOUSBHostDevice *hostDevice = nullptr;
+    IOUSBHostInterface *hostInterface = nullptr;
+    IOUSBHostPipe *hostInPipe = nullptr;
+    IOUSBHostPipe *hostOutPipe = nullptr;
+#endif
 
     bool     deviceOpened    = false;
     uint8_t  bulkInPipeRef   = 0;
@@ -117,6 +146,9 @@ private:
     bool     ioRunning       = false;
 
     CFRunLoopSourceRef asyncSource = nullptr;
+
+    // If we successfully migrate this device to IOUSBHost, set this true
+    bool     usingIOUSBHost   = false;
 };
 
 #endif /* RolandUSBDevice_h */

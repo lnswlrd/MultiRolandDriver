@@ -263,27 +263,55 @@ bool RolandUSBDevice::FindPipes()
 {
     if (!interfaceIntf) return false;
 
-    UInt8 numEP = 0;
-    (*interfaceIntf)->GetNumEndpoints(interfaceIntf, &numEP);
+    // Try alternate settings 0 through 15 (typical USB max)
+    for (UInt8 altSetting = 0; altSetting <= 15; altSetting++) {
+        // Set this alternate setting
+        if (altSetting > 0) {
+            kern_return_t kr = (*interfaceIntf)->SetAlternateInterface(interfaceIntf, altSetting);
+            if (kr != kIOReturnSuccess) {
+                // Alt setting doesn't exist, we're done trying
+                break;
+            }
+        }
 
-    for (UInt8 i = 1; i <= numEP; i++) {
-        UInt8 dir, num, xferType, interval;
-        UInt16 maxPkt;
+        bulkInPipeRef = 0;
+        bulkOutPipeRef = 0;
 
-        kern_return_t kr = (*interfaceIntf)->GetPipeProperties(
-            interfaceIntf, i, &dir, &num, &xferType, &maxPkt, &interval);
-        if (kr != kIOReturnSuccess) continue;
+        UInt8 numEP = 0;
+        (*interfaceIntf)->GetNumEndpoints(interfaceIntf, &numEP);
 
-        // Accept Bulk or Interrupt transfers (Roland uses both across alt settings)
-        if (xferType == kUSBBulk || xferType == kUSBInterrupt) {
-            if (dir == kUSBIn && bulkInPipeRef == 0)
-                bulkInPipeRef = i;
-            else if (dir == kUSBOut && bulkOutPipeRef == 0)
-                bulkOutPipeRef = i;
+        for (UInt8 i = 1; i <= numEP; i++) {
+            UInt8 dir, num, xferType, interval;
+            UInt16 maxPkt;
+
+            kern_return_t kr = (*interfaceIntf)->GetPipeProperties(
+                interfaceIntf, i, &dir, &num, &xferType, &maxPkt, &interval);
+            if (kr != kIOReturnSuccess) continue;
+
+            // Accept Bulk or Interrupt transfers (Roland uses both)
+            if (xferType == kUSBBulk || xferType == kUSBInterrupt) {
+                if (dir == kUSBIn && bulkInPipeRef == 0)
+                    bulkInPipeRef = i;
+                else if (dir == kUSBOut && bulkOutPipeRef == 0)
+                    bulkOutPipeRef = i;
+            }
+        }
+
+        // If we found both IN and OUT, return success
+        if (bulkInPipeRef != 0 && bulkOutPipeRef != 0) {
+            os_log(sLog, "FindPipes: found pipes in alt %u for %{public}s", altSetting, deviceInfo->name);
+            return true;
+        }
+
+        if (altSetting == 0) {
+            os_log(sLog, "FindPipes: alt 0 incomplete (IN=%u OUT=%u), trying others", bulkInPipeRef, bulkOutPipeRef);
         }
     }
 
-    return (bulkInPipeRef != 0 && bulkOutPipeRef != 0);
+    os_log_error(sLog, "FindPipes: no usable alt setting found for %{public}s", deviceInfo->name);
+    bulkInPipeRef = 0;
+    bulkOutPipeRef = 0;
+    return false;
 }
 
 bool RolandUSBDevice::StartIO(CFRunLoopRef runLoop)
@@ -379,6 +407,50 @@ void RolandUSBDevice::ReadCallback(void *refCon, IOReturn result, void *arg0)
     if (self->ioRunning && result != kIOReturnAborted)
         self->SubmitRead();
 }
+
+#if HAVE_IOUSBHOST
+// --- IOUSBHost scaffolding (no-op stubs for migration) --------------------
+
+bool RolandUSBDevice::OpenHost()
+{
+    // Placeholder: real implementation will use IOUSBHostDevice APIs
+    return false;
+}
+
+void RolandUSBDevice::CloseHost()
+{
+    // Placeholder: cleanup host objects when implemented
+}
+
+bool RolandUSBDevice::FindInterfaceHost()
+{
+    // Placeholder: enumerate IOUSBHostInterface children and claim MIDI interface
+    return false;
+}
+
+bool RolandUSBDevice::FindPipesHost()
+{
+    // Placeholder: select alternate settings and locate pipes via IOUSBHostInterface
+    return false;
+}
+
+bool RolandUSBDevice::StartIOHost(CFRunLoopRef runLoop)
+{
+    // Placeholder: set up async read callbacks using IOUSBHostPipe enqueue APIs
+    return false;
+}
+
+void RolandUSBDevice::StopIOHost()
+{
+    // Placeholder: cancel outstanding IO requests
+}
+
+void RolandUSBDevice::SubmitReadHost()
+{
+    // Placeholder: enqueue an async read on hostInPipe
+}
+
+#endif
 
 bool RolandUSBDevice::SendMIDI(uint8_t cable, const uint8_t *data, uint32_t length)
 {
