@@ -393,10 +393,17 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
 
     ScanUSBDevices(state, self);
 
-    // Reset port mappings — rebuilt fresh each FindDevices call
+    // Reset port mappings
     state->portMappings.clear();
 
+    // Create MIDI endpoints for ALL found Roland devices
+    // (they will be grayed out/unavailable until DrvStart opens them)
     for (auto *dev : state->devices) {
+        if (dev->midiDevice) {
+            // Already created in a previous FindDevices call
+            continue;
+        }
+        
         CFStringRef devName = CFStringCreateWithCString(
             NULL, dev->deviceInfo->name, kCFStringEncodingUTF8);
 
@@ -421,6 +428,9 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
 
         MIDIDeviceListAddDevice(devList, dev->midiDevice);
         CFRelease(devName);
+        
+        os_log(sLog, "FindDevices: registered %{public}s (%u port(s))",
+               dev->deviceInfo->name, dev->deviceInfo->numPorts);
     }
 
     os_log(sLog, "FindDevices: %zu device(s), %zu port(s)",
@@ -448,7 +458,20 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef /*devList*/)
         if (dev->Open()) {
             dev->StartIO(state->runLoop);
             dev->isOnline = true;
+            
+            // Mark endpoints as available
+            if (dev->midiDevice)
+                MIDIObjectSetIntegerProperty(dev->midiDevice,
+                                            kMIDIPropertyOffline, 0);
             RegisterRemovalNotification(state, dev);
+            os_log(sLog, "Start: opened %{public}s", dev->deviceInfo->name);
+        } else {
+            // Keep device in list but marked offline
+            dev->isOnline = false;
+            if (dev->midiDevice)
+                MIDIObjectSetIntegerProperty(dev->midiDevice,
+                                            kMIDIPropertyOffline, 1);
+            os_log(sLog, "Start: %{public}s not ready yet", dev->deviceInfo->name);
         }
     }
 
