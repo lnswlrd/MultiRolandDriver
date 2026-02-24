@@ -429,10 +429,10 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
     // Reset port mappings
     state->portMappings.clear();
 
-    // Create MIDI endpoints for all found Roland devices.
-    // CoreMIDI calls FindDevices at least twice per session; we call MIDIDeviceCreate
-    // fresh each time (matching v1.2.1 behavior that worked). The previous MIDIDeviceRef
-    // is simply overwritten — CoreMIDI owns the old one.
+    // CoreMIDI calls FindDevices multiple times. We must call MIDIDeviceCreate
+    // on every call — CoreMIDI uses the returned devList as the authoritative
+    // list and needs fresh MIDIDeviceRef objects each time. (Attempting to reuse
+    // an existing MIDIDeviceRef from a prior call causes the device to go missing.)
     for (auto *dev : state->devices) {
         CFStringRef devName = CFStringCreateWithCString(
             NULL, dev->deviceInfo->name, kCFStringEncodingUTF8);
@@ -448,7 +448,8 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
             dev->midiSources[p] = MIDIEntityGetSource(dev->midiEntities[p], 0);
             dev->midiDests[p]   = MIDIEntityGetDestination(dev->midiEntities[p], 0);
 
-            // Set refcon = global port index (1-based to avoid NULL)
+            // Refcon encodes global port index (1-based to distinguish from NULL).
+            // portMappings is rebuilt from scratch each call (cleared above).
             size_t globalIdx = state->portMappings.size();
             state->portMappings.push_back({dev, dev->deviceInfo->ports[p].cable});
             MIDIEndpointSetRefCons(dev->midiDests[p],
@@ -468,12 +469,44 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
     return noErr;
 }
 
-static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef /*devList*/)
+static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
 {
     auto *state = GetState(self);
     state->runLoop = CFRunLoopGetCurrent();
 
     SetRealtimePriority();
+
+    // Re-read MIDI device/entity/endpoint refs from devList.
+    // Per MIDIDriver.h, the driver must NOT retain refs from FindDevices;
+    // the devList passed to Start is the authoritative source.
+    // CoreMIDI guarantees devList contains the same MIDIDeviceRef objects
+    // in the same order as FindDevices populated them.
+    state->portMappings.clear();
+    ItemCount numMidiDevs = MIDIDeviceListGetNumberOfDevices(devList);
+    for (ItemCount mi = 0; mi < numMidiDevs && mi < (ItemCount)state->devices.size(); mi++) {
+        RolandUSBDevice *dev = state->devices[mi];
+        MIDIDeviceRef midiDev = MIDIDeviceListGetDevice(devList, mi);
+        dev->midiDevice = midiDev;
+
+        ItemCount numEntities = MIDIDeviceGetNumberOfEntities(midiDev);
+        for (ItemCount p = 0; p < numEntities && p < (ItemCount)dev->deviceInfo->numPorts; p++) {
+            MIDIEntityRef ent = MIDIDeviceGetEntity(midiDev, p);
+            dev->midiEntities[p] = ent;
+            dev->midiSources[p]  = MIDIEntityGetSource(ent, 0);
+            dev->midiDests[p]    = MIDIEntityGetDestination(ent, 0);
+
+            size_t globalIdx = state->portMappings.size();
+            state->portMappings.push_back({dev, dev->deviceInfo->ports[p].cable});
+            if (dev->midiDests[p])
+                MIDIEndpointSetRefCons(dev->midiDests[p],
+                                       (void *)(uintptr_t)(globalIdx + 1), NULL);
+        }
+        os_log(sLog, "Start: re-read refs for %{public}s (%lu entities, %lu sources)",
+               dev->deviceInfo->name,
+               (unsigned long)numEntities,
+               (unsigned long)MIDIDeviceGetNumberOfEntities(midiDev));
+    }
+    os_log(sLog, "Start: portMappings rebuilt: %zu entries", state->portMappings.size());
 
     // Create notification port before opening devices (needed for removal notifications)
     state->notifyPort = IONotificationPortCreate(kIOMainPortDefault);
@@ -514,10 +547,12 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef /*devList*/)
                 state->notifyPort, kIOFirstMatchNotification,
                 matchDict, DeviceAdded, state, &state->addedIter);
 
-            // Process existing matches so devices already plugged in at boot
-            // (but enumerated after FindDevices ran) are handled correctly.
-            // Already-online devices are skipped inside DeviceAdded.
-            DeviceAdded(state, state->addedIter);
+            // Drain the initial iterator (required by IOKit). Devices already
+            // handled by FindDevices+DrvStart are online; the hotplug notification
+            // will fire for any device that connects after this point.
+            io_service_t svc;
+            while ((svc = IOIteratorNext(state->addedIter)) != 0)
+                IOObjectRelease(svc);
         }
     }
 
@@ -629,6 +664,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.4 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.9 loaded");
     return state;
 }
