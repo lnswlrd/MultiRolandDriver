@@ -476,8 +476,10 @@ static MIDIDeviceRef FindOrCreateMIDIDevice(MIDIDriverRef driverRef,
                    p, (int)eErr, (unsigned long)ent);
             CFRelease(portName);
         }
-        OSStatus aErr = MIDISetupAddDevice(result);
-        os_log(sLog, "FindOrCreate: MIDISetupAddDevice err=%d", (int)aErr);
+        // Do NOT call MIDISetupAddDevice here. In the CFPlugIn MIDIDriverInterface
+        // pattern, CoreMIDI manages setup persistence via devList in FindDevices.
+        // Calling MIDISetupAddDevice would double-register the device and can
+        // prevent AMS from correctly reading entities/endpoints (no port triangles).
         CFRelease(devName);
         os_log(sLog, "FindOrCreate: new MIDIDevice for %{public}s",
                dev->deviceInfo->name);
@@ -713,6 +715,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.13 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.14 loaded");
     return state;
 }
