@@ -483,17 +483,39 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
     // in the same order as FindDevices populated them.
     state->portMappings.clear();
     ItemCount numMidiDevs = MIDIDeviceListGetNumberOfDevices(devList);
+    os_log(sLog, "Start: devList contains %lu device(s), state->devices has %zu",
+           (unsigned long)numMidiDevs, state->devices.size());
+
     for (ItemCount mi = 0; mi < numMidiDevs && mi < (ItemCount)state->devices.size(); mi++) {
         RolandUSBDevice *dev = state->devices[mi];
         MIDIDeviceRef midiDev = MIDIDeviceListGetDevice(devList, mi);
         dev->midiDevice = midiDev;
 
         ItemCount numEntities = MIDIDeviceGetNumberOfEntities(midiDev);
+        os_log(sLog, "Start: devList[%lu] = midiDev %lu, numEntities=%lu (expected %u for %{public}s)",
+               (unsigned long)mi,
+               (unsigned long)midiDev,
+               (unsigned long)numEntities,
+               dev->deviceInfo->numPorts,
+               dev->deviceInfo->name);
+
         for (ItemCount p = 0; p < numEntities && p < (ItemCount)dev->deviceInfo->numPorts; p++) {
             MIDIEntityRef ent = MIDIDeviceGetEntity(midiDev, p);
             dev->midiEntities[p] = ent;
-            dev->midiSources[p]  = MIDIEntityGetSource(ent, 0);
-            dev->midiDests[p]    = MIDIEntityGetDestination(ent, 0);
+
+            ItemCount nSrc  = MIDIEntityGetNumberOfSources(ent);
+            ItemCount nDest = MIDIEntityGetNumberOfDestinations(ent);
+            dev->midiSources[p] = (nSrc  > 0) ? MIDIEntityGetSource(ent, 0)      : 0;
+            dev->midiDests[p]   = (nDest > 0) ? MIDIEntityGetDestination(ent, 0) : 0;
+
+            os_log(sLog,
+                   "Start:   entity[%lu] ent=%lu nSrc=%lu nDest=%lu src=%lu dst=%lu",
+                   (unsigned long)p,
+                   (unsigned long)ent,
+                   (unsigned long)nSrc,
+                   (unsigned long)nDest,
+                   (unsigned long)dev->midiSources[p],
+                   (unsigned long)dev->midiDests[p]);
 
             size_t globalIdx = state->portMappings.size();
             state->portMappings.push_back({dev, dev->deviceInfo->ports[p].cable});
@@ -501,10 +523,6 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
                 MIDIEndpointSetRefCons(dev->midiDests[p],
                                        (void *)(uintptr_t)(globalIdx + 1), NULL);
         }
-        os_log(sLog, "Start: re-read refs for %{public}s (%lu entities, %lu sources)",
-               dev->deviceInfo->name,
-               (unsigned long)numEntities,
-               (unsigned long)MIDIDeviceGetNumberOfEntities(midiDev));
     }
     os_log(sLog, "Start: portMappings rebuilt: %zu entries", state->portMappings.size());
 
@@ -664,6 +682,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.9 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.10 loaded");
     return state;
 }
