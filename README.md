@@ -8,7 +8,7 @@ Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legac
 
 This driver provides modern macOS (Apple Silicon) support for a wide range of legacy synthesizers. It was developed to ensure continued interoperability and preservation of hardware instruments that are no longer supported by their original manufacturer.
 
-**Technical Implementation:** This driver contains no code, binaries, or firmware from Roland Corporation. It is a 100% original implementation written from scratch, based entirely on public USB-MIDI specifications and observation of hardware communication protocols. The plugin installs per-user with no kernel extension and no elevated privileges required. A single universal binary covers all 30 supported devices.
+**Technical Implementation:** This driver contains no code, binaries, or firmware from Roland Corporation. It is a 100% original implementation written from scratch, based entirely on public USB-MIDI specifications and observation of hardware communication protocols. The plugin installs per-user with no kernel extension and no elevated privileges required. A single universal binary covers all 31 supported devices.
 
 **Purpose:** This is a non-commercial project dedicated to the synthesizer community, ensuring that classic instruments from 2002--2014 remain functional in modern studio environments.
 
@@ -43,7 +43,8 @@ All devices use USB Vendor ID `0x0582` (Roland).
 | V-Synth GT | `0x00C7` | 1 | |
 | Fantom-G | `0x00DE` | 1 | |
 | Juno-Di/Stage | `0x00F8` | 1 | Shared PID with XPS-10 |
-| GAIA SH-01 | `0x0111` | 1 | |
+| VS-700C | `0x00FC` | 1 | V-Studio 700 Console |
+| GAIA SH-01 | `0x0111` | 1 | ⚠️ Support on hold — class-compliant, macOS claims it natively |
 | Lucina AX-09 | `0x011C` | 1 | |
 | Juno-Gi | `0x0123` | 1 | |
 | Jupiter-80 | `0x013A` | 1 | |
