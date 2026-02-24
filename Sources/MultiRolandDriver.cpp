@@ -476,10 +476,9 @@ static MIDIDeviceRef FindOrCreateMIDIDevice(MIDIDriverRef driverRef,
                    p, (int)eErr, (unsigned long)ent);
             CFRelease(portName);
         }
-        // Do NOT call MIDISetupAddDevice here. In the CFPlugIn MIDIDriverInterface
-        // pattern, CoreMIDI manages setup persistence via devList in FindDevices.
-        // Calling MIDISetupAddDevice would double-register the device and can
-        // prevent AMS from correctly reading entities/endpoints (no port triangles).
+        // Add to global MIDI setup so AMS and all CoreMIDI clients can see the device.
+        OSStatus aErr = MIDISetupAddDevice(result);
+        os_log(sLog, "FindOrCreate: MIDISetupAddDevice err=%d", (int)aErr);
         CFRelease(devName);
         os_log(sLog, "FindOrCreate: new MIDIDevice for %{public}s",
                dev->deviceInfo->name);
@@ -532,16 +531,20 @@ static void SetupPortMappings(MultiRolandDriverState *state, RolandUSBDevice *de
 
 static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
 {
-    // Correct persistent-device pattern:
-    //   For each physical USB device, find or create a persistent MIDIDeviceRef
-    //   and add it to devList. CoreMIDI tracks devList as the authoritative list
-    //   for this driver — those entries are what MIDIGetDriverDeviceList returns
-    //   in future sessions, enabling persistence of port names and triangles in AMS.
+    // MIDIServer may call FindDevices more than once per session.
+    // Guard: if dev->midiDevice is already set from a previous call,
+    // reuse that ref instead of creating a new one — avoids duplicate
+    // MIDIDeviceRefs in devList which confuses AMS port-triangle display.
     auto *state = GetState(self);
     ScanUSBDevices(state, self);
 
     for (auto *dev : state->devices) {
-        dev->midiDevice = FindOrCreateMIDIDevice(self, dev);
+        if (!dev->midiDevice) {
+            dev->midiDevice = FindOrCreateMIDIDevice(self, dev);
+        } else {
+            os_log(sLog, "FindDevices: reusing cached ref=%lu for %{public}s",
+                   (unsigned long)dev->midiDevice, dev->deviceInfo->name);
+        }
         MIDIDeviceListAddDevice(devList, dev->midiDevice);
         os_log(sLog, "FindDevices: added %{public}s (ref=%lu) to devList",
                dev->deviceInfo->name, (unsigned long)dev->midiDevice);
@@ -563,11 +566,16 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
     // FindOrCreateMIDIDevice, so they already exist in each midiDevice.
     state->portMappings.clear();
     ItemCount numDevs = MIDIDeviceListGetNumberOfDevices(devList);
+    os_log(sLog, "Start: devList has %lu entry(s)", (unsigned long)numDevs);
     for (ItemCount mi = 0;
          mi < numDevs && mi < (ItemCount)state->devices.size(); mi++)
     {
+        MIDIDeviceRef fromList = MIDIDeviceListGetDevice(devList, mi);
         RolandUSBDevice *dev = state->devices[mi];
-        dev->midiDevice = MIDIDeviceListGetDevice(devList, mi);
+        os_log(sLog, "Start: devList[%lu]=ref=%lu state->devices[%lu]->midiDevice=%lu",
+               (unsigned long)mi, (unsigned long)fromList,
+               (unsigned long)mi, (unsigned long)dev->midiDevice);
+        dev->midiDevice = fromList;
         SetupPortMappings(state, dev);
     }
 
@@ -715,6 +723,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.14 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.15 loaded");
     return state;
 }
