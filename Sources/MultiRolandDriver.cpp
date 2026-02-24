@@ -400,10 +400,16 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
     // (they will be grayed out/unavailable until DrvStart opens them)
     for (auto *dev : state->devices) {
         if (dev->midiDevice) {
-            // Already created in a previous FindDevices call
+            // Already created in a previous FindDevices call — just rebuild portMappings.
+            for (uint8_t p = 0; p < dev->deviceInfo->numPorts; p++) {
+                size_t globalIdx = state->portMappings.size();
+                state->portMappings.push_back({dev, dev->deviceInfo->ports[p].cable});
+                MIDIEndpointSetRefCons(dev->midiDests[p],
+                                       (void *)(uintptr_t)(globalIdx + 1), NULL);
+            }
             continue;
         }
-        
+
         CFStringRef devName = CFStringCreateWithCString(
             NULL, dev->deviceInfo->name, kCFStringEncodingUTF8);
 
@@ -428,7 +434,7 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
 
         MIDIDeviceListAddDevice(devList, dev->midiDevice);
         CFRelease(devName);
-        
+
         os_log(sLog, "FindDevices: registered %{public}s (%u port(s))",
                dev->deviceInfo->name, dev->deviceInfo->numPorts);
     }
