@@ -1,3 +1,4 @@
 *.o
 *.plugin/
 .DS_Store
+Releases/
