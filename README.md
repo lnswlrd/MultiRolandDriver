@@ -44,7 +44,7 @@ All devices use USB Vendor ID `0x0582` (Roland).
 | Fantom-G | `0x00DE` | 1 | |
 | Juno-Di/Stage | `0x00F8` | 1 | Shared PID with XPS-10 |
 | VS-700C | `0x00FC` | 1 | V-Studio 700 Console |
-| GAIA SH-01 | `0x0111` | 1 | ⚠️ Support on hold — class-compliant, macOS claims it natively |
+| GAIA SH-01 | `0x0111` | 1 | ⚠️ Support on hold — Apple's built-in driver claims it first and causes firmware freeze |
 | Lucina AX-09 | `0x011C` | 1 | |
 | Juno-Gi | `0x0123` | 1 | |
 | Jupiter-80 | `0x013A` | 1 | |
