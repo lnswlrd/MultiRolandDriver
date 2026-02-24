@@ -2,7 +2,7 @@
 
 > MultiRolandDriver is an independent project and is not affiliated with, sponsored by, or endorsed by Roland Corporation.
 
-Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 30 Roland/Edirol USB devices as a universal binary (arm64 + x86_64).
+Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 31 Roland/Edirol USB devices as a universal binary (arm64 + x86_64).
 
 ## About
 

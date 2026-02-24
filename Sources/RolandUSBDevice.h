@@ -5,15 +5,6 @@
 #include <CoreMIDI/CoreMIDI.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/usb/IOUSBLib.h>
-#if __has_include(<IOUSBHost/IOUSBHost.h>) && defined(__OBJC__)
-#import <IOUSBHost/IOUSBHost.h>
-#define HAVE_IOUSBHOST 1
-#else
-#define HAVE_IOUSBHOST 0
-// When not compiling as Objective-C(++) we avoid importing IOUSBHost headers
-// and rely on opaque placeholders. Real IOUSBHost usage must be implemented
-// in Objective-C++ (.mm) translation units that import the framework.
-#endif
 #include <IOKit/IOCFPlugIn.h>
 #include <unistd.h>
 
@@ -56,6 +47,7 @@ static const RolandDeviceInfo kSupportedDevices[] = {
     { "Roland V-Synth GT",       0x00C7, 1, {{ "V-Synth GT", 0 }} },
     { "Roland Fantom-G",         0x00DE, 1, {{ "Fantom-G", 0 }} },
     { "Roland Juno-Di/Stage",    0x00F8, 1, {{ "JUNO", 0 }} },
+    { "Roland VS-700C",          0x00FC, 1, {{ "VS-700C Console", 0 }} },
     { "Roland GAIA SH-01",       0x0111, 1, {{ "GAIA SH-01", 0 }} },
     { "Roland Lucina AX-09",     0x011C, 1, {{ "Lucina AX-09", 0 }} },
     { "Roland Juno-Gi",          0x0123, 1, {{ "Juno-Gi", 0 }} },
@@ -146,9 +138,6 @@ private:
     bool     ioRunning       = false;
 
     CFRunLoopSourceRef asyncSource = nullptr;
-
-    // If we successfully migrate this device to IOUSBHost, set this true
-    bool     usingIOUSBHost   = false;
 };
 
 #endif /* RolandUSBDevice_h */

@@ -408,50 +408,6 @@ void RolandUSBDevice::ReadCallback(void *refCon, IOReturn result, void *arg0)
         self->SubmitRead();
 }
 
-#if HAVE_IOUSBHOST
-// --- IOUSBHost scaffolding (no-op stubs for migration) --------------------
-
-bool RolandUSBDevice::OpenHost()
-{
-    // Placeholder: real implementation will use IOUSBHostDevice APIs
-    return false;
-}
-
-void RolandUSBDevice::CloseHost()
-{
-    // Placeholder: cleanup host objects when implemented
-}
-
-bool RolandUSBDevice::FindInterfaceHost()
-{
-    // Placeholder: enumerate IOUSBHostInterface children and claim MIDI interface
-    return false;
-}
-
-bool RolandUSBDevice::FindPipesHost()
-{
-    // Placeholder: select alternate settings and locate pipes via IOUSBHostInterface
-    return false;
-}
-
-bool RolandUSBDevice::StartIOHost(CFRunLoopRef runLoop)
-{
-    // Placeholder: set up async read callbacks using IOUSBHostPipe enqueue APIs
-    return false;
-}
-
-void RolandUSBDevice::StopIOHost()
-{
-    // Placeholder: cancel outstanding IO requests
-}
-
-void RolandUSBDevice::SubmitReadHost()
-{
-    // Placeholder: enqueue an async read on hostInPipe
-}
-
-#endif
-
 bool RolandUSBDevice::SendMIDI(uint8_t cable, const uint8_t *data, uint32_t length)
 {
     if (!interfaceIntf || !bulkOutPipeRef || !data || length == 0)
