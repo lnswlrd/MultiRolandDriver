@@ -429,22 +429,11 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
     // Reset port mappings
     state->portMappings.clear();
 
-    // Create MIDI endpoints for ALL found Roland devices
-    // (they will be grayed out/unavailable until DrvStart opens them)
+    // Create MIDI endpoints for all found Roland devices.
+    // CoreMIDI calls FindDevices at least twice per session; we call MIDIDeviceCreate
+    // fresh each time (matching v1.2.1 behavior that worked). The previous MIDIDeviceRef
+    // is simply overwritten — CoreMIDI owns the old one.
     for (auto *dev : state->devices) {
-        if (dev->midiDevice) {
-            // Already created in a previous FindDevices call — rebuild portMappings
-            // and re-add to devList (CoreMIDI requires this on every call).
-            for (uint8_t p = 0; p < dev->deviceInfo->numPorts; p++) {
-                size_t globalIdx = state->portMappings.size();
-                state->portMappings.push_back({dev, dev->deviceInfo->ports[p].cable});
-                MIDIEndpointSetRefCons(dev->midiDests[p],
-                                       (void *)(uintptr_t)(globalIdx + 1), NULL);
-            }
-            MIDIDeviceListAddDevice(devList, dev->midiDevice);
-            continue;
-        }
-
         CFStringRef devName = CFStringCreateWithCString(
             NULL, dev->deviceInfo->name, kCFStringEncodingUTF8);
 
@@ -640,6 +629,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.3 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.4 loaded");
     return state;
 }
