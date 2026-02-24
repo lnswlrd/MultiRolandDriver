@@ -1,6 +1,7 @@
 #include "RolandUSBDevice.h"
 #include "USBMIDIParser.h"
 #include <CoreMIDI/MIDIDriver.h>
+#include <CoreMIDI/MIDISetup.h>
 #include <IOKit/usb/IOUSBLib.h>
 #include <IOKit/IOMessage.h>
 #include <os/log.h>
@@ -244,6 +245,9 @@ static void DeviceRemoved(void *refCon, io_service_t /*service*/,
     dev->Close();
     dev->isOnline = false;
 
+    // Mark offline so Audio MIDI Setup grays it out.
+    // Use MIDISetupRemoveDevice only for hotplug-created devices (those added
+    // via MIDISetupAddDevice). Devices from FindDevices stay in setup persistently.
     if (dev->midiDevice)
         MIDIObjectSetIntegerProperty(dev->midiDevice, kMIDIPropertyOffline, 1);
 
@@ -302,17 +306,41 @@ static void DeviceAdded(void *refCon, io_iterator_t iterator)
 
             const RolandDeviceInfo *info = FindRolandDevice((uint16_t)pid);
             if (info) {
-                // Wait for USB interfaces to settle after hotplug
-                // The device service matches before its interfaces are ready
+                // Read location ID
+                UInt32 locID = 0;
+                CFNumberRef locRef2 = (CFNumberRef)IORegistryEntryCreateCFProperty(
+                    usbService, CFSTR("locationID"), NULL, 0);
+                if (locRef2) {
+                    CFNumberGetValue(locRef2, kCFNumberSInt32Type, &locID);
+                    CFRelease(locRef2);
+                }
+
+                // Wait for USB interfaces to settle after hotplug.
                 usleep(500000); // 500ms
 
                 std::lock_guard<std::mutex> lock(state->devicesMutex);
                 MIDIDriverRef driverRef = (MIDIDriverRef)state;
 
-                // Check if we already have an offline device with same productID
+                // Skip if this locationID is already tracked and online
+                // (happens when the drain in DrvStart sees a device that
+                // FindDevices + DrvStart already opened).
+                bool alreadyOnline = false;
+                for (auto *dev : state->devices) {
+                    if (dev->isOnline && dev->locationID == (uint64_t)locID) {
+                        alreadyOnline = true;
+                        break;
+                    }
+                }
+                if (alreadyOnline) {
+                    IOObjectRelease(usbService);
+                    continue;
+                }
+
+                // Check if we already have an offline device with same locationID
+                // (device was disconnected and reconnected).
                 RolandUSBDevice *existingDev = nullptr;
                 for (auto *dev : state->devices) {
-                    if (!dev->isOnline && dev->deviceInfo->productID == info->productID) {
+                    if (!dev->isOnline && dev->locationID == (uint64_t)locID) {
                         existingDev = dev;
                         break;
                     }
@@ -365,10 +393,15 @@ static void DeviceAdded(void *refCon, io_iterator_t iterator)
 
                         CFRelease(devName);
 
+                        // Register with CoreMIDI — required for devices added
+                        // outside of FindDevices (hotplug / boot drain).
+                        MIDISetupAddDevice(dev->midiDevice);
+
                         CFRunLoopRef rl = state->runLoop ? state->runLoop
                                                          : CFRunLoopGetCurrent();
                         dev->StartIO(rl);
                         dev->isOnline = true;
+                        dev->locationID = locID;
                         RegisterRemovalNotification(state, dev);
 
                         state->devices.push_back(dev);
@@ -400,13 +433,15 @@ static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
     // (they will be grayed out/unavailable until DrvStart opens them)
     for (auto *dev : state->devices) {
         if (dev->midiDevice) {
-            // Already created in a previous FindDevices call — just rebuild portMappings.
+            // Already created in a previous FindDevices call — rebuild portMappings
+            // and re-add to devList (CoreMIDI requires this on every call).
             for (uint8_t p = 0; p < dev->deviceInfo->numPorts; p++) {
                 size_t globalIdx = state->portMappings.size();
                 state->portMappings.push_back({dev, dev->deviceInfo->ports[p].cable});
                 MIDIEndpointSetRefCons(dev->midiDests[p],
                                        (void *)(uintptr_t)(globalIdx + 1), NULL);
             }
+            MIDIDeviceListAddDevice(devList, dev->midiDevice);
             continue;
         }
 
@@ -490,10 +525,10 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef /*devList*/)
                 state->notifyPort, kIOFirstMatchNotification,
                 matchDict, DeviceAdded, state, &state->addedIter);
 
-            // Drain existing matches (required by IOKit)
-            io_service_t svc;
-            while ((svc = IOIteratorNext(state->addedIter)) != 0)
-                IOObjectRelease(svc);
+            // Process existing matches so devices already plugged in at boot
+            // (but enumerated after FindDevices ran) are handled correctly.
+            // Already-online devices are skipped inside DeviceAdded.
+            DeviceAdded(state, state->addedIter);
         }
     }
 
@@ -605,6 +640,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.1 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.3 loaded");
     return state;
 }
