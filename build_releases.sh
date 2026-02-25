@@ -46,6 +46,7 @@ build_version "v1.4.10" "c3f7349"
 build_version "v1.4.16" "4008f61"
 build_version "v1.4.17" "0b9a80f"
 build_version "v1.4.18" "aa8ea22"
+build_version "v1.5.0"  "97bc3d4"
 
 rm -rf "$TMPWORK"
 
