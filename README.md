@@ -2,7 +2,7 @@
 
 > MultiRolandDriver is an independent project and is not affiliated with, sponsored by, or endorsed by Roland Corporation.
 
-Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 31 Roland/Edirol USB devices as a universal binary (arm64 + x86_64).
+Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 32 Roland/Edirol USB devices as a universal binary (arm64 + x86_64).
 
 ## About
 
@@ -44,7 +44,7 @@ All devices use USB Vendor ID `0x0582` (Roland).
 | Fantom-G | `0x00DE` | 1 | |
 | Juno-Di/Stage | `0x00F8` | 1 | Shared PID with XPS-10 |
 | VS-700C | `0x00FC` | 1 | V-Studio 700 Console |
-| GAIA SH-01 | `0x0111` | 1 | ⚠️ Support on hold — Apple's built-in driver claims it first and causes firmware freeze |
+| GAIA SH-01 | `0x0111` | 1 | ⚠️ Requires Roland's SH-01 audio driver installed in HAL. Without it the synth firmware freezes on USB claim. |
 | Lucina AX-09 | `0x011C` | 1 | |
 | Juno-Gi | `0x0123` | 1 | |
 | Jupiter-80 | `0x013A` | 1 | |
@@ -86,10 +86,14 @@ The script removes the macOS quarantine flag, ad-hoc signs the plugin, installs 
 ## Architecture
 
 ```
-MultiRolandDriver.plugin (CFPlugIn, MIDIDriverInterface)
+MultiRolandDriver.plugin (CFPlugIn, MIDIDriverInterface v1 + v2)
   |
   +-- MultiRolandDriver.cpp   CFPlugIn factory + MIDIDriverInterface vtable
-  |                            FindDevices/Start/Stop/Send + USB hotplug
+  |                            QueryInterface supports kMIDIDriverInterface2ID (v2)
+  |                            and kMIDIDriverInterfaceID (v1) fallback.
+  |                            In v2 mode: Start receives the persistent MIDIDevice
+  |                            list directly; FindDevices is a no-op.
+  |                            Start/Stop/Send + USB hotplug (IOServiceAddMatchingNotification)
   |
   +-- RolandUSBDevice.cpp/h    Per-device USB I/O (IOKit user-space)
   |                            Open/Close/StartIO/StopIO/SendMIDI
@@ -99,6 +103,8 @@ MultiRolandDriver.plugin (CFPlugIn, MIDIDriverInterface)
                                CIN-based parse (BulkIn) and build (BulkOut)
                                Cable number in high nibble = port routing
 ```
+
+On startup, the plugin matches live USB devices (by locationID) against the persistent MIDIDevice list maintained by MIDIServer. Orphan entries from previous sessions are removed automatically.
 
 ## License
 
