@@ -601,19 +601,27 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
 
     state->portMappings.clear();
 
+    // Track which persistent entries we match to a physical device.
+    std::vector<bool> matched(numPersistent, false);
+
     for (auto *dev : state->devices) {
         // Try to find an existing persistent MIDIDeviceRef for this USB device.
         MIDIDeviceRef found = 0;
+        ItemCount foundIdx = 0;
         for (ItemCount i = 0; i < numPersistent && !found; i++) {
+            if (matched[i]) continue;
             MIDIDeviceRef candidate = MIDIDeviceListGetDevice(devList, i);
             SInt32 storedLoc = 0;
             if (MIDIObjectGetIntegerProperty(candidate,
                     kRolandLocationProperty, &storedLoc) == noErr
-                && (UInt32)storedLoc == (UInt32)dev->locationID)
+                && (UInt32)storedLoc == (UInt32)dev->locationID) {
                 found = candidate;
+                foundIdx = i;
+            }
         }
 
         if (found) {
+            matched[foundIdx] = true;
             dev->midiDevice = found;
             os_log(sLog, "Start: matched persistent ref=%lu for %{public}s",
                    (unsigned long)found, dev->deviceInfo->name);
@@ -634,6 +642,16 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
             dev->isOnline = false;
             MIDIObjectSetIntegerProperty(dev->midiDevice, kMIDIPropertyOffline, 1);
             os_log(sLog, "Start: %{public}s not ready", dev->deviceInfo->name);
+        }
+    }
+
+    // Remove unmatched persistent entries (duplicates from earlier debug sessions).
+    for (ItemCount i = 0; i < numPersistent; i++) {
+        if (!matched[i]) {
+            MIDIDeviceRef orphan = MIDIDeviceListGetDevice(devList, i);
+            OSStatus err = MIDISetupRemoveDevice(orphan);
+            os_log(sLog, "Start: removed orphan persistent entry [%lu] err=%d",
+                   (unsigned long)i, (int)err);
         }
     }
 
@@ -764,6 +782,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.17 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.18 loaded");
     return state;
 }
