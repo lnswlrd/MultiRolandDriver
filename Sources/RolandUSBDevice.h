@@ -50,7 +50,7 @@ static const RolandDeviceInfo kSupportedDevices[] = {
     { "Roland VS-700C",          0x00FC, 1, {{ "VS-700C Console", 0 }} },
     // GAIA SH-01 (0x0111): Roland ships a dedicated kext (SH01USBDriver).
     // Support put on hold — see CLAUDE.md for background.
-    // { "Roland GAIA SH-01",    0x0111, 1, {{ "GAIA SH-01", 0 }} },
+    { "Roland GAIA SH-01",     0x0111, 1, {{ "GAIA SH-01", 0 }} },
     { "Roland Lucina AX-09",     0x011C, 1, {{ "Lucina AX-09", 0 }} },
     { "Roland Juno-Gi",          0x0123, 1, {{ "Juno-Gi", 0 }} },
     { "Roland Jupiter-80",       0x013A, 1, {{ "Jupiter-80", 0 }} },

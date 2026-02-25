@@ -764,6 +764,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.16 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.17 loaded");
     return state;
 }
