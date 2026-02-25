@@ -17,10 +17,11 @@ build_version() {
         make clean 2>/dev/null 1>/dev/null
         if make 2>/dev/null 1>/dev/null; then
             STAGING=$(mktemp -d /tmp/roland_pkg_XXXXX)
-            cp -R MultiRolandDriver.plugin "$STAGING/"
-            [[ -f install.sh ]] && cp install.sh "$STAGING/"
-            cd "$STAGING/.."
-            zip -q -r "$RELEASES/MultiRolandDriver-${VER}.zip" "$(basename "$STAGING")/"
+            PKGNAME="MultiRolandDriver-${VER}"
+            mkdir "$STAGING/$PKGNAME"
+            cp -R MultiRolandDriver.plugin "$STAGING/$PKGNAME/"
+            [[ -f install.sh ]] && cp install.sh "$STAGING/$PKGNAME/"
+            (cd "$STAGING" && zip -q -r "$RELEASES/${PKGNAME}.zip" "$PKGNAME/")
             rm -rf "$STAGING"
             echo "OK"
         else
@@ -42,6 +43,9 @@ build_version "v1.4.3"  "4f5061d"
 build_version "v1.4.4"  "3050ff7"
 build_version "v1.4.9"  "f73bb71"
 build_version "v1.4.10" "c3f7349"
+build_version "v1.4.16" "4008f61"
+build_version "v1.4.17" "0b9a80f"
+build_version "v1.4.18" "aa8ea22"
 
 rm -rf "$TMPWORK"
 
