@@ -21,7 +21,7 @@ $(BUNDLE): $(OBJECTS) Resources/Info.plist
 	@mkdir -p $(BUNDLE)/Contents/MacOS
 	$(CXX) $(LDFLAGS) $(FRAMEWORKS) $(OBJECTS) -o $(BUNDLE)/Contents/MacOS/$(PLUGIN_NAME)
 	@cp Resources/Info.plist $(BUNDLE)/Contents/
-	codesign --force --sign - $(BUNDLE)
+	codesign --force --sign "Apple Development:" $(BUNDLE)
 	@echo "Built and signed $(BUNDLE)"
 
 %.o: %.cpp

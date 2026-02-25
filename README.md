@@ -2,13 +2,13 @@
 
 > MultiRolandDriver is an independent project and is not affiliated with, sponsored by, or endorsed by Roland Corporation.
 
-Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 31 Roland/Edirol USB devices as a universal binary (arm64 + x86_64).
+Open-source CoreMIDI driver plugin for macOS that replaces Roland's broken legacy drivers. Supports 32 Roland/Edirol USB devices as a universal binary (arm64 + x86_64).
 
 ## About
 
 This driver provides modern macOS (Apple Silicon) support for a wide range of legacy synthesizers. It was developed to ensure continued interoperability and preservation of hardware instruments that are no longer supported by their original manufacturer.
 
-**Technical Implementation:** This driver contains no code, binaries, or firmware from Roland Corporation. It is a 100% original implementation written from scratch, based entirely on public USB-MIDI specifications and observation of hardware communication protocols. The plugin installs per-user with no kernel extension and no elevated privileges required. A single universal binary covers all 31 supported devices.
+**Technical Implementation:** This driver contains no code, binaries, or firmware from Roland Corporation. It is a 100% original implementation written from scratch, based entirely on public USB-MIDI specifications and observation of hardware communication protocols. The plugin installs per-user with no kernel extension and no elevated privileges required. A single universal binary covers all 32 supported devices.
 
 **Purpose:** This is a non-commercial project dedicated to the synthesizer community, ensuring that classic instruments from 2002--2014 remain functional in modern studio environments.
 
@@ -21,42 +21,39 @@ Roland's official macOS drivers consist of a kernel extension (kext) and a CoreM
 All devices use USB Vendor ID `0x0582` (Roland).
 
 | Device | USB PID | Ports | Notes |
-|--------|---------|-------|-------|
-| SC-8850 | `0x0003` | 4 | Part A/B/C/D |
-| SC-8820 | `0x0007` | 2 | Part A/B |
-| SK-500 | `0x000B` | 2 | Part A/B |
-| SC-D70 | `0x000C` | 2 | Composite (Audio+MIDI) |
-| XV-5050 | `0x0012` | 1 | |
-| SD-90 | `0x0016` | 2 | Composite (Audio+MIDI) |
-| V-Synth | `0x001D` | 1 | |
-| SD-20 | `0x0027` | 1 | |
-| SD-80 | `0x0029` | 2 | MIDI 1/2 |
-| XV-2020 | `0x002D` | 1 | |
-| Edirol PCR | `0x0033` | 3 | MIDI + PCR 1/2, Advanced Driver mode |
-| Fantom-X | `0x006D` | 1 | |
-| G-70 | `0x0080` | 2 | MIDI + Control |
-| V-Synth XT | `0x0084` | 1 | |
-| Juno-G | `0x00A6` | 1 | |
-| MC-808 | `0x00A9` | 1 | |
-| SH-201 | `0x00AD` | 1 | |
+|--------|---------|:-----:|-------|
+| SC-8850 | `0x0003` | 4 | <sub>Part A/B/C/D</sub> |
+| SC‑8820 | `0x0007` | 2 | <sub>Part A/B</sub> |
+| SK‑500 | `0x000B` | 2 | <sub>Part A/B</sub> |
+| SC‑D70 | `0x000C` | 2 | <sub>Composite (Audio+MIDI) — driver claims only MIDI interface</sub> |
+| XV‑5050 | `0x0012` | 1 | |
+| SD‑90 | `0x0016` | 2 | <sub>Composite (Audio+MIDI) — driver claims only MIDI interface</sub> |
+| V‑Synth | `0x001D` | 1 | |
+| SD‑20 | `0x0027` | 1 | |
+| SD‑80 | `0x0029` | 2 | |
+| XV‑2020 | `0x002D` | 1 | |
+| Edirol PCR | `0x0033` | 3 | <sub>Advanced Driver mode required</sub> |
+| Fantom‑X | `0x006D` | 1 | |
+| G‑70 | `0x0080` | 2 | |
+| V‑Synth XT | `0x0084` | 1 | |
+| Juno‑G | `0x00A6` | 1 | |
+| MC‑808 | `0x00A9` | 1 | |
+| SH‑201 | `0x00AD` | 1 | |
 | SonicCell | `0x00C2` | 1 | |
-| V-Synth GT | `0x00C7` | 1 | |
-| Fantom-G | `0x00DE` | 1 | |
-| Juno-Di/Stage | `0x00F8` | 1 | Shared PID with XPS-10 |
-| VS-700C | `0x00FC` | 1 | V-Studio 700 Console |
-| GAIA SH-01 | `0x0111` | 1 | ⚠️ Support on hold — Apple's built-in driver claims it first and causes firmware freeze |
-| Lucina AX-09 | `0x011C` | 1 | |
-| Juno-Gi | `0x0123` | 1 | |
-| Jupiter-80 | `0x013A` | 1 | |
-| Jupiter-50 | `0x0154` | 1 | |
-| INTEGRA-7 | `0x015B` | 1 | |
-| FA-06/07/08 | `0x0174` | 2 | MIDI + DAW Control |
-| JD-Xi | `0x01A1` | 1 | |
-| **Interfaces** | | | |
-| UM-ONE | `0x012A` | 1 | |
-| QUAD-CAPTURE | `0x012F` | 1 | Composite (Audio+MIDI) |
-
-Composite devices (SC-D70, SD-90, QUAD-CAPTURE) coexist safely with CoreAudio -- the driver filters USB interfaces by class and only claims the MIDI interface.
+| V‑Synth GT | `0x00C7` | 1 | |
+| Fantom‑G | `0x00DE` | 1 | |
+| Juno‑Di / Stage / XPS‑10 | `0x00F8` | 1 | |
+| VS‑700C | `0x00FC` | 1 | |
+| GAIA SH‑01 | `0x0111` | 1 | <sub>Requires Roland's SH‑01 audio driver in HAL.<br>The SH‑01 has three vendor interfaces:<br>0+1 (audio, 0xff/0x02) and 2 (MIDI, 0xff/0x03).<br>Roland's driver claims 0+1 first; without it<br>this driver lands on interface 0<br>(no usable pipes) and the synth firmware freezes.</sub> |
+| Lucina AX‑09 | `0x011C` | 1 | |
+| Juno‑Gi | `0x0123` | 1 | |
+| Jupiter‑80 | `0x013A` | 1 | |
+| Jupiter‑50 | `0x0154` | 1 | |
+| INTEGRA‑7 | `0x015B` | 1 | |
+| FA‑06/07/08 | `0x0174` | 2 | |
+| JD‑Xi | `0x01A1` | 1 | |
+| UM‑ONE | `0x012A` | 1 | |
+| QUAD‑CAPTURE | `0x012F` | 1 | <sub>Composite (Audio+MIDI) — driver claims only MIDI interface</sub> |
 
 ## Building and Installing
 
@@ -86,10 +83,14 @@ The script removes the macOS quarantine flag, ad-hoc signs the plugin, installs 
 ## Architecture
 
 ```
-MultiRolandDriver.plugin (CFPlugIn, MIDIDriverInterface)
+MultiRolandDriver.plugin (CFPlugIn, MIDIDriverInterface v1 + v2)
   |
   +-- MultiRolandDriver.cpp   CFPlugIn factory + MIDIDriverInterface vtable
-  |                            FindDevices/Start/Stop/Send + USB hotplug
+  |                            QueryInterface supports kMIDIDriverInterface2ID (v2)
+  |                            and kMIDIDriverInterfaceID (v1) fallback.
+  |                            In v2 mode: Start receives the persistent MIDIDevice
+  |                            list directly; FindDevices is a no-op.
+  |                            Start/Stop/Send + USB hotplug (IOServiceAddMatchingNotification)
   |
   +-- RolandUSBDevice.cpp/h    Per-device USB I/O (IOKit user-space)
   |                            Open/Close/StartIO/StopIO/SendMIDI
@@ -99,6 +100,8 @@ MultiRolandDriver.plugin (CFPlugIn, MIDIDriverInterface)
                                CIN-based parse (BulkIn) and build (BulkOut)
                                Cable number in high nibble = port routing
 ```
+
+On startup, the plugin matches live USB devices (by locationID) against the persistent MIDIDevice list maintained by MIDIServer. Orphan entries from previous sessions are removed automatically.
 
 ## License
 

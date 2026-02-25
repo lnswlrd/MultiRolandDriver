@@ -110,28 +110,8 @@ private:
     static void ReadCallback(void *refCon, IOReturn result, void *arg0);
     bool SendSysExThrottled(uint8_t cable, const uint8_t *data, uint32_t length);
 
-#if HAVE_IOUSBHOST
-    // IOUSBHost-based helpers (scaffolding for migration)
-    bool OpenHost();
-    void CloseHost();
-    bool FindInterfaceHost();
-    bool FindPipesHost();
-    bool StartIOHost(CFRunLoopRef runLoop);
-    void StopIOHost();
-    void SubmitReadHost();
-#endif
-
-    // Legacy IOUSBLib interfaces (kept for compatibility during migration)
     IOUSBDeviceInterface650    **deviceIntf    = nullptr;
     IOUSBInterfaceInterface650 **interfaceIntf = nullptr;
-
-    // IOUSBHost objects (optional - used when HAVE_IOUSBHOST)
-#if HAVE_IOUSBHOST
-    IOUSBHostDevice *hostDevice = nullptr;
-    IOUSBHostInterface *hostInterface = nullptr;
-    IOUSBHostPipe *hostInPipe = nullptr;
-    IOUSBHostPipe *hostOutPipe = nullptr;
-#endif
 
     bool     deviceOpened    = false;
     uint8_t  bulkInPipeRef   = 0;
