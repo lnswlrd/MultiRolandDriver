@@ -20,44 +20,40 @@ Roland's official macOS drivers consist of a kernel extension (kext) and a CoreM
 
 All devices use USB Vendor ID `0x0582` (Roland).
 
-| Device | USB PID | Ports |
-|--------|---------|-------|
-| SC-8850 | `0x0003` | 4 |
-| SC-8820 | `0x0007` | 2 |
-| SK-500 | `0x000B` | 2 |
-| SC-D70 | `0x000C` | 2 [^1] |
-| XV-5050 | `0x0012` | 1 |
-| SD-90 | `0x0016` | 2 [^1] |
-| V-Synth | `0x001D` | 1 |
-| SD-20 | `0x0027` | 1 |
-| SD-80 | `0x0029` | 2 |
-| XV-2020 | `0x002D` | 1 |
-| Edirol PCR | `0x0033` | 3 [^2] |
-| Fantom-X | `0x006D` | 1 |
-| G-70 | `0x0080` | 2 |
-| V-Synth XT | `0x0084` | 1 |
-| Juno-G | `0x00A6` | 1 |
-| MC-808 | `0x00A9` | 1 |
-| SH-201 | `0x00AD` | 1 |
-| SonicCell | `0x00C2` | 1 |
-| V-Synth GT | `0x00C7` | 1 |
-| Fantom-G | `0x00DE` | 1 |
-| Juno-Di / Stage / XPS-10 | `0x00F8` | 1 |
-| VS-700C | `0x00FC` | 1 |
-| GAIA SH-01 | `0x0111` | 1 [^3] |
-| Lucina AX-09 | `0x011C` | 1 |
-| Juno-Gi | `0x0123` | 1 |
-| Jupiter-80 | `0x013A` | 1 |
-| Jupiter-50 | `0x0154` | 1 |
-| INTEGRA-7 | `0x015B` | 1 |
-| FA-06/07/08 | `0x0174` | 2 |
-| JD-Xi | `0x01A1` | 1 |
-| UM-ONE | `0x012A` | 1 |
-| QUAD-CAPTURE | `0x012F` | 1 [^1] |
-
-[^1]: Composite device (Audio+MIDI). The driver filters USB interfaces by class and claims only the MIDI interface, so CoreAudio coexists safely.
-[^2]: Advanced Driver mode required.
-[^3]: Requires Roland's SH-01 audio driver installed in the HAL. The SH-01 exposes three vendor-class interfaces: 0+1 (audio, 0xff/0x02) and 2 (MIDI, 0xff/0x03). Roland's audio driver claims 0+1 first, leaving interface 2 for this driver. Without it, this driver claims interface 0 instead -- which has no usable pipes -- and the synth firmware freezes.
+| Device | USB PID | Ports | Notes |
+|--------|---------|:-----:|-------|
+| SC-8850 | `0x0003` | 4 | <sub>Part A/B/C/D</sub> |
+| SC-8820 | `0x0007` | 2 | <sub>Part A/B</sub> |
+| SK-500 | `0x000B` | 2 | <sub>Part A/B</sub> |
+| SC-D70 | `0x000C` | 2 | <sub>Composite (Audio+MIDI) — driver claims only MIDI interface</sub> |
+| XV-5050 | `0x0012` | 1 | |
+| SD-90 | `0x0016` | 2 | <sub>Composite (Audio+MIDI) — driver claims only MIDI interface</sub> |
+| V-Synth | `0x001D` | 1 | |
+| SD-20 | `0x0027` | 1 | |
+| SD-80 | `0x0029` | 2 | |
+| XV-2020 | `0x002D` | 1 | |
+| Edirol PCR | `0x0033` | 3 | <sub>Advanced Driver mode required</sub> |
+| Fantom-X | `0x006D` | 1 | |
+| G-70 | `0x0080` | 2 | |
+| V-Synth XT | `0x0084` | 1 | |
+| Juno-G | `0x00A6` | 1 | |
+| MC-808 | `0x00A9` | 1 | |
+| SH-201 | `0x00AD` | 1 | |
+| SonicCell | `0x00C2` | 1 | |
+| V-Synth GT | `0x00C7` | 1 | |
+| Fantom-G | `0x00DE` | 1 | |
+| Juno-Di / Stage / XPS-10 | `0x00F8` | 1 | |
+| VS-700C | `0x00FC` | 1 | |
+| GAIA SH-01 | `0x0111` | 1 | <sub>Requires Roland's SH-01 audio driver in HAL. The SH-01 has three vendor interfaces: 0+1 (audio, 0xff/0x02) and 2 (MIDI, 0xff/0x03). Roland's driver claims 0+1 first; without it this driver lands on interface 0 (no usable pipes) and the synth firmware freezes.</sub> |
+| Lucina AX-09 | `0x011C` | 1 | |
+| Juno-Gi | `0x0123` | 1 | |
+| Jupiter-80 | `0x013A` | 1 | |
+| Jupiter-50 | `0x0154` | 1 | |
+| INTEGRA-7 | `0x015B` | 1 | |
+| FA-06/07/08 | `0x0174` | 2 | |
+| JD-Xi | `0x01A1` | 1 | |
+| UM-ONE | `0x012A` | 1 | |
+| QUAD-CAPTURE | `0x012F` | 1 | <sub>Composite (Audio+MIDI) — driver claims only MIDI interface</sub> |
 
 ## Building and Installing
 
