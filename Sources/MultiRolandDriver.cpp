@@ -71,6 +71,7 @@ struct PortMapping {
 struct MultiRolandDriverState {
     MIDIDriverInterface *vtable;    // Must be first field (COM layout)
     UInt32 refCount;
+    int    mVersion;               // 1 = kMIDIDriverInterfaceID, 2 = kMIDIDriverInterface2ID
     CFUUIDRef factoryID;
 
     std::vector<RolandUSBDevice *> devices;
@@ -85,6 +86,7 @@ struct MultiRolandDriverState {
     MultiRolandDriverState()
         : vtable(&sDriverVtable)
         , refCount(1)
+        , mVersion(1)
         , factoryID(nullptr)
         , notifyPort(nullptr)
         , addedIter(0)
@@ -109,10 +111,23 @@ static inline MultiRolandDriverState *GetState(MIDIDriverRef self) {
 static HRESULT DrvQueryInterface(void *self, REFIID iid, LPVOID *ppv)
 {
     CFUUIDRef requestedUUID = CFUUIDCreateFromUUIDBytes(NULL, iid);
+    auto *state = GetState(self);
 
+    // Prefer v2 interface — MIDIServer will call Start with the current
+    // persistent MIDISetup device list, and FindDevices is NOT called.
+    if (CFEqual(requestedUUID, kMIDIDriverInterface2ID)) {
+        CFRelease(requestedUUID);
+        state->mVersion = 2;
+        DrvAddRef(self);
+        *ppv = self;
+        return S_OK;
+    }
+
+    // Fall back to v1 — FindDevices will be called before Start.
     if (CFEqual(requestedUUID, IUnknownUUID) ||
         CFEqual(requestedUUID, kMIDIDriverInterfaceID)) {
         CFRelease(requestedUUID);
+        state->mVersion = 1;
         DrvAddRef(self);
         *ppv = self;
         return S_OK;
@@ -531,26 +546,31 @@ static void SetupPortMappings(MultiRolandDriverState *state, RolandUSBDevice *de
 
 static OSStatus DrvFindDevices(MIDIDriverRef self, MIDIDeviceListRef devList)
 {
-    // MIDIServer may call FindDevices more than once per session.
-    // Guard: if dev->midiDevice is already set from a previous call,
-    // reuse that ref instead of creating a new one — avoids duplicate
-    // MIDIDeviceRefs in devList which confuses AMS port-triangle display.
     auto *state = GetState(self);
+
+    // For v2 drivers MIDIServer does NOT call FindDevices at all; this
+    // stub is only here in case MIDIServer falls back to v1 negotiation.
+    os_log(sLog, "FindDevices called (mVersion=%d)", state->mVersion);
+
+    if (state->mVersion == 2) {
+        // v2: FindDevices is a no-op — Start receives the persistent device
+        // list directly from CoreMIDI's MIDISetup database.
+        return noErr;
+    }
+
+    // v1 fallback: scan USB, create devices, populate devList.
     ScanUSBDevices(state, self);
 
     for (auto *dev : state->devices) {
-        if (!dev->midiDevice) {
+        if (!dev->midiDevice)
             dev->midiDevice = FindOrCreateMIDIDevice(self, dev);
-        } else {
-            os_log(sLog, "FindDevices: reusing cached ref=%lu for %{public}s",
+        else
+            os_log(sLog, "FindDevices(v1): reusing cached ref=%lu for %{public}s",
                    (unsigned long)dev->midiDevice, dev->deviceInfo->name);
-        }
         MIDIDeviceListAddDevice(devList, dev->midiDevice);
-        os_log(sLog, "FindDevices: added %{public}s (ref=%lu) to devList",
-               dev->deviceInfo->name, (unsigned long)dev->midiDevice);
+        os_log(sLog, "FindDevices(v1): added %{public}s to devList", dev->deviceInfo->name);
     }
-
-    os_log(sLog, "FindDevices: %zu device(s)", state->devices.size());
+    os_log(sLog, "FindDevices(v1): %zu device(s)", state->devices.size());
     return noErr;
 }
 
@@ -558,36 +578,52 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
 {
     auto *state = GetState(self);
     state->runLoop = CFRunLoopGetCurrent();
-
     SetRealtimePriority();
 
-    // devList is authoritative — re-read MIDIDeviceRefs from it and
-    // rebuild portMappings. Entities were created in FindDevices via
-    // FindOrCreateMIDIDevice, so they already exist in each midiDevice.
-    state->portMappings.clear();
-    ItemCount numDevs = MIDIDeviceListGetNumberOfDevices(devList);
-    os_log(sLog, "Start: devList has %lu entry(s)", (unsigned long)numDevs);
-    for (ItemCount mi = 0;
-         mi < numDevs && mi < (ItemCount)state->devices.size(); mi++)
-    {
-        MIDIDeviceRef fromList = MIDIDeviceListGetDevice(devList, mi);
-        RolandUSBDevice *dev = state->devices[mi];
-        os_log(sLog, "Start: devList[%lu]=ref=%lu state->devices[%lu]->midiDevice=%lu",
-               (unsigned long)mi, (unsigned long)fromList,
-               (unsigned long)mi, (unsigned long)dev->midiDevice);
-        dev->midiDevice = fromList;
-        SetupPortMappings(state, dev);
-    }
+    os_log(sLog, "Start: mVersion=%d", state->mVersion);
 
-    // Create notification port before opening devices.
-    state->notifyPort = IONotificationPortCreate(kIOMainPortDefault);
-    if (state->notifyPort) {
-        CFRunLoopSourceRef notifySrc =
-            IONotificationPortGetRunLoopSource(state->notifyPort);
-        CFRunLoopAddSource(state->runLoop, notifySrc, kCFRunLoopDefaultMode);
-    }
+    // For v2 drivers, devList contains all devices in the persistent MIDISetup
+    // database that are owned by this driver.  We match each against a physically
+    // present USB device (by locationID property) and mark it online or offline.
+    //
+    // For v1 drivers, devList is what FindDevices populated; we just iterate it.
+    //
+    // In both cases the algorithm is the same; the difference is who filled devList.
+
+    ScanUSBDevices(state, self);  // populate state->devices from USB
+
+    // Mark every persistent device offline initially.
+    ItemCount numPersistent = MIDIDeviceListGetNumberOfDevices(devList);
+    os_log(sLog, "Start: devList has %lu entry(s)", (unsigned long)numPersistent);
+    for (ItemCount i = 0; i < numPersistent; i++)
+        MIDIObjectSetIntegerProperty(MIDIDeviceListGetDevice(devList, i),
+                                     kMIDIPropertyOffline, 1);
+
+    state->portMappings.clear();
 
     for (auto *dev : state->devices) {
+        // Try to find an existing persistent MIDIDeviceRef for this USB device.
+        MIDIDeviceRef found = 0;
+        for (ItemCount i = 0; i < numPersistent && !found; i++) {
+            MIDIDeviceRef candidate = MIDIDeviceListGetDevice(devList, i);
+            SInt32 storedLoc = 0;
+            if (MIDIObjectGetIntegerProperty(candidate,
+                    kRolandLocationProperty, &storedLoc) == noErr
+                && (UInt32)storedLoc == (UInt32)dev->locationID)
+                found = candidate;
+        }
+
+        if (found) {
+            dev->midiDevice = found;
+            os_log(sLog, "Start: matched persistent ref=%lu for %{public}s",
+                   (unsigned long)found, dev->deviceInfo->name);
+        } else {
+            // Brand-new device — create and register with CoreMIDI.
+            dev->midiDevice = FindOrCreateMIDIDevice(self, dev);
+        }
+
+        SetupPortMappings(state, dev);
+
         if (dev->Open()) {
             dev->StartIO(state->runLoop);
             dev->isOnline = true;
@@ -602,7 +638,12 @@ static OSStatus DrvStart(MIDIDriverRef self, MIDIDeviceListRef devList)
     }
 
     // Register for USB hotplug notifications.
+    state->notifyPort = IONotificationPortCreate(kIOMainPortDefault);
     if (state->notifyPort) {
+        CFRunLoopSourceRef notifySrc =
+            IONotificationPortGetRunLoopSource(state->notifyPort);
+        CFRunLoopAddSource(state->runLoop, notifySrc, kCFRunLoopDefaultMode);
+
         CFMutableDictionaryRef matchDict = IOServiceMatching("IOUSBHostDevice");
         if (matchDict) {
             IOServiceAddMatchingNotification(
@@ -723,6 +764,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.4.15 loaded");
+    os_log(sLog, "MultiRolandDriver v1.4.16 loaded");
     return state;
 }
