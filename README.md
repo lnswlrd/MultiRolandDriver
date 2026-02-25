@@ -44,7 +44,7 @@ All devices use USB Vendor ID `0x0582` (Roland).
 | Fantom‑G | `0x00DE` | 1 | |
 | Juno‑Di / Stage / XPS‑10 | `0x00F8` | 1 | |
 | VS‑700C | `0x00FC` | 1 | |
-| GAIA SH‑01 | `0x0111` | 1 | <sub>Requires Roland's SH‑01 audio driver in HAL. The SH‑01 has three vendor interfaces: 0+1 (audio, 0xff/0x02) and 2 (MIDI, 0xff/0x03). Roland's driver claims 0+1 first; without it this driver lands on interface 0 (no usable pipes) and the synth firmware freezes.</sub> |
+| GAIA SH‑01 | `0x0111` | 1 | <sub>Requires Roland's SH‑01 audio driver in HAL.<br>The SH‑01 has three vendor interfaces:<br>0+1 (audio, 0xff/0x02) and 2 (MIDI, 0xff/0x03).<br>Roland's driver claims 0+1 first; without it<br>this driver lands on interface 0<br>(no usable pipes) and the synth firmware freezes.</sub> |
 | Lucina AX‑09 | `0x011C` | 1 | |
 | Juno‑Gi | `0x0123` | 1 | |
 | Jupiter‑80 | `0x013A` | 1 | |
