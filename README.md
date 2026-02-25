@@ -57,7 +57,7 @@ All devices use USB Vendor ID `0x0582` (Roland).
 
 [^1]: Composite device (Audio+MIDI). The driver filters USB interfaces by class and claims only the MIDI interface, so CoreAudio coexists safely.
 [^2]: Advanced Driver mode required.
-[^3]: Requires Roland's SH-01 audio driver installed in the HAL. Without it the synth firmware freezes when the MIDI driver claims the USB interface.
+[^3]: Requires Roland's SH-01 audio driver installed in the HAL. The SH-01 exposes three vendor-class interfaces: 0+1 (audio, 0xff/0x02) and 2 (MIDI, 0xff/0x03). Roland's audio driver claims 0+1 first, leaving interface 2 for this driver. Without it, this driver claims interface 0 instead -- which has no usable pipes -- and the synth firmware freezes.
 
 ## Building and Installing
 
