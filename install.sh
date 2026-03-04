@@ -16,9 +16,6 @@ echo "Installing $PLUGIN..."
 # Remove macOS quarantine flag (downloaded files)
 xattr -rd com.apple.quarantine "$SOURCE" 2>/dev/null || true
 
-# Ad-hoc code sign
-codesign --force --sign - "$SOURCE"
-
 # Copy to MIDI Drivers
 mkdir -p "$INSTALL_DIR"
 cp -R "$SOURCE" "$INSTALL_DIR/"
