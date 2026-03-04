@@ -712,12 +712,13 @@ static OSStatus DrvConfigure(MIDIDriverRef /*self*/, MIDIDeviceRef /*device*/)
 }
 
 static OSStatus DrvSend(MIDIDriverRef self, const MIDIPacketList *pktlist,
-                         void * /*destConnRefCon*/, void *endptRefCon)
+                         void *destConnRefCon, void * /*endptRefCon*/)
 {
     auto *state = GetState(self);
 
-    // Look up port mapping via refcon (1-based index into portMappings)
-    size_t idx = (size_t)(uintptr_t)endptRefCon;
+    // MIDIEndpointSetRefCons ref1 is delivered as destConnRefCon (3rd param).
+    // endptRefCon (4th param) is always 0 and must not be used for port lookup.
+    size_t idx = (size_t)(uintptr_t)destConnRefCon;
 
     const MIDIPacket *pkt = &pktlist->packet[0];
     for (UInt32 i = 0; i < pktlist->numPackets; i++) {
@@ -782,6 +783,6 @@ void *MultiRolandDriverCreate(CFAllocatorRef /*alloc*/, CFUUIDRef typeUUID)
 
     CFPlugInAddInstanceForFactory(state->factoryID);
 
-    os_log(sLog, "MultiRolandDriver v1.5.0 loaded");
+    os_log(sLog, "MultiRolandDriver v1.5.1 loaded");
     return state;
 }
