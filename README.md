@@ -62,7 +62,7 @@ make clean && make
 make install
 ```
 
-Builds a universal binary (arm64 + x86_64) with ad-hoc code signing. Installs the plugin to `~/Library/Audio/MIDI Drivers/` and restarts MIDIServer.
+Builds a universal binary (arm64 + x86_64), signs with your Apple Development certificate, and installs the plugin to `~/Library/Audio/MIDI Drivers/`, then restarts MIDIServer.
 
 ## Pre-built plugin
 
@@ -72,7 +72,7 @@ Download `MultiRolandDriver.plugin` from [Releases](../../releases), then run:
 ./install.sh
 ```
 
-The script removes the macOS quarantine flag, ad-hoc signs the plugin, installs it, and restarts MIDIServer.
+The script removes the macOS quarantine flag, installs the plugin to `~/Library/Audio/MIDI Drivers/`, and restarts MIDIServer. The plugin is pre-signed — no local certificate required.
 
 ## System Requirements
 
