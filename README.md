@@ -22,7 +22,7 @@ All devices use USB Vendor ID `0x0582` (Roland).
 
 | Device | USB PID | Ports | Notes |
 |--------|---------|:-----:|-------|
-| SC-8850 | `0x0003` | 4 | <sub>Part A/B/C/D</sub> |
+| SC-8850 | `0x0003` | 6 | <sub>Part A/B/C/D + MIDI Port 1/2</sub> |
 | SC‑8820 | `0x0007` | 2 | <sub>Part A/B</sub> |
 | SK‑500 | `0x000B` | 2 | <sub>Part A/B</sub> |
 | SC‑D70 | `0x000C` | 2 | <sub>Composite (Audio+MIDI) — driver claims only MIDI interface</sub> |
