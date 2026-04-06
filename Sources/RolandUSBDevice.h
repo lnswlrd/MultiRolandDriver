@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 // Supported Roland devices (all share VID 0x0582)
-#define kMaxPortsPerDevice 4
+#define kMaxPortsPerDevice 6
 
 struct RolandPortInfo {
     const char *name;   // Entity name in CoreMIDI (e.g. "FA-06/07/08 DAW CTRL")
@@ -26,7 +26,7 @@ struct RolandDeviceInfo {
 static const uint16_t kRolandVendorIDValue = 0x0582;
 
 static const RolandDeviceInfo kSupportedDevices[] = {
-    { "Roland SC-8850",          0x0003, 4, {{ "SC-8850 Part A", 0 }, { "SC-8850 Part B", 1 }, { "SC-8850 Part C", 2 }, { "SC-8850 Part D", 3 }} },
+    { "Roland SC-8850",          0x0003, 6, {{ "SC-8850 Part A", 0 }, { "SC-8850 Part B", 1 }, { "SC-8850 Part C", 2 }, { "SC-8850 Part D", 3 }, { "SC-8850 MIDI 1", 4 }, { "SC-8850 MIDI 2", 5 }} },
     { "Roland SC-8820",          0x0007, 2, {{ "SC-8820 Part A", 0 }, { "SC-8820 Part B", 1 }} },
     { "Roland SK-500",           0x000B, 2, {{ "SK-500 Part A", 0 }, { "SK-500 Part B", 1 }} },
     { "Roland SC-D70",           0x000C, 2, {{ "SC-D70 Part A", 0 }, { "SC-D70 Part B", 1 }} },
